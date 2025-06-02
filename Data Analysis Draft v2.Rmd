@@ -1,0 +1,171 @@
+---
+title: "STAA 556 Data Analysis Draft"
+author: "Ronnie Delgado"
+date: "2025-05-27"
+output: pdf_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyverse)
+library(glmnet)
+library(randomForest)
+```
+
+# Reading in Data
+
+```{r}
+train <- read.csv("C:/Users/Ronnie/Downloads/tbistaa556_training.csv")
+validate <- read.csv("C:/Users/Ronnie/Downloads/tbistaa556_validate.csv")
+
+# Ethan Read in data
+#train = read.csv("tbistaa556_training.csv")
+#validate = read.csv("tbistaa556_validate.csv")
+
+# reomving the died and subject id columns
+#DON'T RUN MORE THAN ONCE WITHOUT RELOADING THE CSV FILES SO YOU DON'T KEEP REMOVING COLUMNS
+train = train[,-1]
+validate = validate[,-1]
+train = train[,-36]
+validate = validate[,-35]
+
+# converting NA in the race column to unknown in both datasets
+indR = is.na(train$race7)
+train$race7[indR] = 0
+
+# splitting features and labels
+xtrain = train[,-36]
+ytrain = train[,36]
+xvalidate = validate[,-35]
+
+# removing all rows with NA
+ind = complete.cases(train)
+trainClean = train[ind,]
+
+#how many NAs per column
+for(i in 1:ncol(xtrain)){
+  cat("\nColumn ", names(xtrain)[i], ". Num_NAs:", sum(is.na(xtrain[,i])))
+}
+
+
+#Converting all nominal variables into factors
+trainClean$race7 <- as.factor(trainClean$race7)
+trainClean$ethnic3 <- as.factor(trainClean$ethnic3)
+trainClean$sex2 <- as.factor(trainClean$sex2)
+trainClean$sig_other <- as.factor(trainClean$sig_other)
+trainClean$tobacco <- as.factor(trainClean$tobacco)
+trainClean$alcohol <- as.factor(trainClean$alcohol)
+trainClean$drugs <- as.factor(trainClean$drugs)
+trainClean$payertype <- as.factor(trainClean$payertype)
+trainClean$ptp1_yn <- as.factor(trainClean$ptp1_yn)
+trainClean$ptp2_yn <- as.factor(trainClean$ptp2_yn)
+trainClean$ptp0_yn <- as.factor(trainClean$ptp0_yn)
+trainClean$ed_yn <- as.factor(trainClean$ed_yn)
+trainClean$icu <- as.factor(trainClean$icu)
+trainClean$delirium <- as.factor(trainClean$delirium)
+trainClean$agitated <- as.factor(trainClean$agitated)
+trainClean$lethargic <- as.factor(trainClean$lethargic)
+trainClean$comatose <- as.factor(trainClean$comatose)
+trainClean$disoriented <- as.factor(trainClean$disoriented)
+trainClean$dc_setting <- as.factor(trainClean$dc_setting)
+trainClean$prehosp <- as.factor(trainClean$prehosp)
+trainClean$posthosp <- as.factor(trainClean$posthosp)
+#trainClean$ptp3_yn <- as.factor(trainClean$ptp3_yn)
+
+
+
+
+```
+
+## GLM
+
+```{r}
+#incorporating a ceiling for Percent variables. Used 3 standard deviations away from the mean as a cutoff point
+trainClean[,"PercentAboveHighSchoolEducationForZip"] = pmin(trainClean[,"PercentAboveHighSchoolEducationForZip"],0.6843532)
+
+trainClean[,"PercentAboveBachelorsEducationForZip"] = pmin(trainClean[,"PercentAboveBachelorsEducationForZip"], 0.25684)
+
+
+# Using model.matrix to create a matrix of all predictors suitable for lasso GLM 
+X = model.matrix(ptp3_yn ~., data = trainClean)[,-36]
+
+y <- trainClean[,36]
+
+# creating a vector of lambda values
+lambda <- 10^seq(-4, -1, length.out = 100)
+
+# creating lasso fit
+lassofit = glmnet(X, y, alpha = 1, lambda = lambda, family = "binomial")
+
+summary(lassofit)
+lassofit
+
+# creating data frame of beta values for each lambda value
+lasso_beta <- data.frame(t(as.matrix(coef(lassofit))))
+
+# adding lambda value to data frame
+lasso_beta |>
+  mutate(lambda = lassofit$lambda) |>
+  pivot_longer(-lambda, names_to = "predictor", values_to = "coef") -> beta_df 
+
+# plotting which beta values go to zero for an increase in lambda values 
+beta_df |>
+  filter(predictor != "X.Intercept.") %>%
+  ggplot() +
+  geom_line(aes(lambda, coef, group = predictor, colour = predictor)) +
+  scale_x_log10() 
+
+# doing 10 fold cv on lasso model for best lambda value
+cv_lasso <- cv.glmnet(X, y, alpha = 1, lambda = lambda)
+
+# Ploitting cv test mse and lambda values 
+ggplot() +
+  geom_line(aes(cv_lasso$lambda, cv_lasso$cvm)) +
+  geom_point(aes(cv_lasso$lambda, cv_lasso$cvm)) +
+  scale_x_log10()
+
+# Our optimal lambda value
+cv_lasso$lambda.min
+
+# the number of beta values which don't go to zero when we use optimal lambda value
+cv_lasso$nzero[which.min(cv_lasso$cvm)]
+
+
+# Gettinh coefficients at best lambda
+best_lambda <- cv_lasso$lambda.min
+best_model_coefs <- coef(cv_lasso, s = "lambda.min")
+
+best_model_coefs
+
+# predicted probabilities can still not be full calculated due to test dataset not having response
+
+```
+
+Look further into MakeX() function for imputation, this was found through the error message when using a dataframe for the input in fitting the model instead of a matrix.
+
+
+
+## random forests
+
+```{r}
+# fitting random forest
+trainClean$ptp3_yn = as.factor(trainClean$ptp3_yn)
+rf_fit <- randomForest(ptp3_yn ~ ., data = trainClean, mtry = ncol(trainClean) - 1, importance = TRUE)
+
+
+# plotting which predictors are the most important
+data.frame(rf_fit$importance )%>%
+  mutate(variable = rownames(rf_fit$importance)) %>%
+  mutate(variable = factor(variable, levels = variable[order(MeanDecreaseGini)])) %>% 
+  ggplot() +
+  geom_point(aes(MeanDecreaseGini, variable))
+
+# confusion matrix cant be made with actual test data due to not having response variable
+
+```
+
+
+
+
+
