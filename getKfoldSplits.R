@@ -85,23 +85,39 @@ kfoldData = function(impute = FALSE, colnames, data, seed = 556, k = 5, printImp
   }
   return(listReturn)
 }
+Allnames = c("ptp3_yn","age", "race7", "ethnic3", "sex2", "sig_other","tobacco", "alcohol", 
+             "drugs", "MedianIncomeForZip", "PercentAboveHighSchoolEducationForZip", 
+             "PercentAboveBachelorsEducationForZip", "payertype", "tbiS02",                               
+             "tbiS06", "tbiS09", "ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "icu", 
+             "delirium", "agitated", "lethargic","comatose", "disoriented", 
+             "gcs_min", "gcs_max", "adl_min", "adl_max", "mobility_min", "mobility_max",                         
+             "los_total", "dc_setting", "prehosp", "posthosp", "summaryGCS",                           
+             "summaryADL", "summaryMOB", "loglos_total", "PABEFZ",                               
+             "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
 
 names1 = c("ptp3_yn","age", "race7", "ethnic3", "sex2", "sig_other","tobacco", "alcohol", 
            "drugs", "MedianIncomeForZip", "payertype",                               
-           "ptp1_yn", "ptp2_yn", "ed_yn", "icu", 
+           "ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "icu", 
            "delirium", "agitated", "lethargic","comatose", "disoriented", 
-           "dc_setting", "prehosp", "posthosp", "summaryGCS",                           
-           "summaryADL", "summaryMOB", "loglos_total", "PABEFZ",                               
+           "dc_setting", "prehosp", "posthosp", "gcs_min", "gcs_max", "adl_min", 
+           "adl_max", "mobility_min", "mobility_max", "loglos_total", "PABEFZ",                               
            "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
-namesTest = c("ptp3_yn","age", "race7", "ethnic3", "sex2", "sig_other","tobacco", "alcohol", 
-              "drugs", "payertype",                               
-              "ptp1_yn", "ptp2_yn", "ed_yn", "icu", 
-              "delirium", "agitated", "lethargic","comatose", "disoriented", 
-              "dc_setting", "prehosp", "posthosp", "ptp3_yn", "summaryGCS",                           
-              "summaryADL", "summaryMOB", "loglos_total", "PABEFZ",                               
-              "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
 
-l1 = kfoldData(colnames = names1, data = data, impute = TRUE, k = 7)
+names2 = c("ptp3_yn","age", "race7", "sex2", "sig_other","tobacco", "alcohol", 
+           "drugs", "MedianIncomeForZip", "payertype",                               
+           "ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", 
+           "delirium", "dc_setting", "prehosp", "posthosp", "summaryADL", 
+           "mobility_min", "mobility_max", "loglos_total",                               
+           "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
+
+names3 = c("ptp3_yn","age", "race7", "sex2", "sig_other","tobacco", "alcohol", 
+           "drugs", "MedianIncomeForZip", "payertype",                               
+           "ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", 
+           "delirium", "disoriented","dc_setting", "prehosp", "posthosp", "summaryADL", 
+           "mobility_min", "mobility_max", "loglos_total",                               
+           "PAHSEFZ", "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
+
+l1 = kfoldData(colnames = names1, data = data, impute = TRUE, k = 5)
 
 
 
