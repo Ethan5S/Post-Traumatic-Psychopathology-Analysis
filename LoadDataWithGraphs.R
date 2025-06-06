@@ -163,7 +163,7 @@ propPTP = function(train){
   }
 }
 
-propPTP(train1)
+propPTP(train)
 
 # more continuous predictors
 #train$logPAHSEFZ = log(train$PercentAboveHighSchoolEducationForZip+1)
@@ -176,8 +176,8 @@ train$loglos_total = log(train$los_total+1)
 #train$loglogPABEFZ = log(train$logPABEFZ + 1)
 #train$logloglogPAHSEFZ = log(train$loglogPAHSEFZ + 1)
 #train$logloglogPABEFZ = log(train$loglogPABEFZ + 1)
-train$PABEFZ = ifelse(train$PercentAboveBachelorsEducationForZip>0.7,0.7,train$PercentAboveBachelorsEducationForZip)
-train$PAHSEFZ = ifelse(train$PercentAboveHighSchoolEducationForZip>1.5,1.5,train$PercentAboveHighSchoolEducationForZip)
+train$PABEFZ = ifelse(train$PercentAboveBachelorsEducationForZip>0.4,0.4,train$PercentAboveBachelorsEducationForZip)
+train$PAHSEFZ = ifelse(train$PercentAboveHighSchoolEducationForZip>1,1,train$PercentAboveHighSchoolEducationForZip)
 train$logtbiS02 = log(train$tbiS02+1)
 train$logtbiS06 = log(train$tbiS06+1)
 train$logtbiS09 = log(train$tbiS09+1)
@@ -195,6 +195,7 @@ train1$logtbiS06 = log(train$tbiS06+1)
 train1$logtbiS09 = log(train$tbiS09+1)
 
 # graphs of continuous predictors vs trt
+died = train1[train1$dc_setting == "Died",]
 library(ggplot2)
 graphs = function(train, numUnique = 8){
   for(col in 1:ncol(train)){
@@ -204,13 +205,15 @@ graphs = function(train, numUnique = 8){
     next
   }
   colname = colnames(train)[col]
-  print(ggplot(train, aes(x = train[[col]], y = as.factor(train$ptp3_yn), color = as.factor(train$ptp3_yn))) + 
+  print(ggplot(train, aes(x = .data[[colname]], y = as.factor(ptp3_yn), color = as.factor(ptp3_yn))) + 
     geom_jitter(size = 1, alpha = 0.5) + 
       labs(x = colname, y = "PTP Post") + theme(legend.position = "none"))
   }
 }
 
-graphs(train1, numUnique = 4)
+
+graphs(train, numUnique = 4)
+#graphs(died, numUnique = 4)
 
 #load training data as a csv file
 write.csv(train, file = "fullData.csv")
