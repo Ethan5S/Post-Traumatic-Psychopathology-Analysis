@@ -389,3 +389,85 @@ data.frame(rf_fit$importance )%>%
 
 
 
+### testing Random Forest with kfold splits
+
+## testing names1 with imputed values
+
+kfold_list <- kfoldData(impute = TRUE, colnames = names1, data = fulldata, k = 5)
+
+
+rf_error_rates <- numeric(5)
+rf_cross_entropies_losses <- numeric(5)
+rf_true_positive_rates <- numeric(5)
+rf_true_negative_rates <- numeric(5)
+
+## testing on names1 with imputation
+
+for (i in 1:5) {
+  Xtrain <- as.matrix(kfold_list[[paste0("Xtrain", i)]])
+  Ytrain <- as.vector(kfold_list[[paste0("Ytrain", i)]])
+  Xtest <- as.matrix(kfold_list[[paste0("Xtest", i)]])
+  Ytest <- as.vector(kfold_list[[paste0("Ytest", i)]])
+  
+  rf_fit <- randomForest(Ytrain ~ ., data = Xtrain, mtry = ncol(trainClean) - 1, importance = TRUE)
+  
+  pred_probs <- predict(rf_fit, newx = Xtest, type = "response")
+  
+  predictions <- ifelse(pred_probs > 0.5, 1, 0)
+  
+  rf_error_rates[i] <- mean(predictions != Ytest)
+  
+  rf_cross_entropies_losses[i] <- CrossEntropyLoss(pred_probs, Ytest)
+  
+  TP <- sum(predictions == 1 & Ytest == 1)
+  TN <- sum(predictions == 0 & Ytest == 0)
+  FP <- sum(predictions == 1 & Ytest == 0)
+  FN <- sum(predictions == 0 & Ytest == 1)
+  
+  rf_true_positive_rates[i] <- ifelse((TP + FN) > 0, TP / (TP + FN))
+  rf_true_negative_rates[i] <- ifelse((TN + FP) > 0, TN / (TN + FP))
+  
+}
+
+
+rf_error_rates2 <- numeric(5)
+rf_cross_entropies_losses2 <- numeric(5)
+rf_true_positive_rates2 <- numeric(5)
+rf_true_negative_rates2 <- numeric(5)
+
+kfold_list <- kfoldData(impute = TRUE, colnames = names1, data = fulldata, k = 5)
+
+for (i in 1:5) {
+  Xtrain <- kfold_list[[paste0("Xtrain", i)]]
+  Ytrain <- kfold_list[[paste0("Ytrain", i)]]
+  Xtest <- kfold_list[[paste0("Xtest", i)]]
+  Ytest <- kfold_list[[paste0("Ytest", i)]]
+  
+  train_df <- data.frame(Xtrain, ptp3_yn = as.factor(Ytrain))
+  test_df <- data.frame(Xtest)
+  
+  rf_fit <- randomForest(ptp3_yn ~ ., data = train_df, mtry = ncol(Xtrain), importance = TRUE)
+  
+  pred_probs <- predict(rf_fit, newdata = test_df, type = "prob")[, "1"]
+  
+  predictions <- ifelse(pred_probs > 0.5, 1, 0)
+  
+  rf_error_rates2[i] <- mean(predictions != Ytest)
+  
+  rf_cross_entropies_losses2[i] <- CrossEntropyLoss(pred_probs, Ytest)
+  
+  TP <- sum(predictions == 1 & Ytest == 1)
+  TN <- sum(predictions == 0 & Ytest == 0)
+  FP <- sum(predictions == 1 & Ytest == 0)
+  FN <- sum(predictions == 0 & Ytest == 1)
+  
+  rf_true_positive_rates2[i] <- ifelse((TP + FN) > 0, TP / (TP + FN))
+  rf_true_negative_rates2[i] <- ifelse((TN + FP) > 0, TN / (TN + FP))
+}
+
+rf_error_rates2
+rf_cross_entropies_losses2
+rf_true_positive_rates2
+rf_true_negative_rates2
+
+
