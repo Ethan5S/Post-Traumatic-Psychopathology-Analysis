@@ -239,7 +239,10 @@ data.frame(rf_fit$importance )%>%
   mutate(variable = rownames(rf_fit$importance)) %>%
   mutate(variable = factor(variable, levels = variable[order(MeanDecreaseGini)])) %>% 
   ggplot() +
-  geom_point(aes(MeanDecreaseGini, variable))
+  geom_point(aes(MeanDecreaseGini, variable))+
+  labs(title = "Variable Importance")-> Rf_image
+
+ggsave("Rf_image.png")
 
 # Using model.matrix to create a matrix of all predictors suitable for lasso GLM 
 X = model.matrix(ptp3_yn ~., data = trainClean)[,-36]
@@ -262,7 +265,10 @@ cv_lasso <- cv.glmnet(X, y, alpha = 1, lambda = lambda)
 ggplot() +
   geom_line(aes(cv_lasso$lambda, cv_lasso$cvm)) +
   geom_point(aes(cv_lasso$lambda, cv_lasso$cvm)) +
-  scale_x_log10()
+  scale_x_log10()+
+  labs(x = "Lambda", y = "CV Error", title = "CV Error Across Lambdas") -> lasso_image
+
+ggsave("lasso_image.png")
 
 cv_lasso$lambda.min
 # the number of beta values which don't go to zero when we use optimal lambda value
@@ -273,7 +279,7 @@ cv_lasso$nzero[which.min(cv_lasso$cvm)]
 best_lambda <- cv_lasso$lambda.min
 best_model_coefs <- coef(cv_lasso, s = "lambda.min")
 
-best_model_coefs
+
 
 ```
 
@@ -384,6 +390,7 @@ kfoldData = function(impute = FALSE, colnames, data, seed = 556, k = 5, printImp
 }
 
 CrossEntropyLoss = function(probabilities,truth){
+  probabilities <- pmin(pmax(probabilities, 1e-15), 1 - 1e-15)
   return(-mean((truth*log(probabilities)) + (1-truth)*log(1-probabilities)))
 }
 ```
@@ -404,13 +411,14 @@ Imp3 = kfoldData(colnames = names3, data = data, impute = TRUE, k = 5)
 
 Lasso GLM Results
 ```{r}
-LASSO = function(kfold_list, lambda = 0.00075, seed = 556){
+LASSO = function(kfold_list, lambda = 0.00231013, seed = 556){
 
 error_rates <- numeric(5)
 cross_entropies_losses <- numeric(5)
 true_positive_rates <- numeric(5)
 true_negative_rates <- numeric(5)
-
+all_predictions <- c()
+all_truths <- c()
 
 # looping through each kfold split
 for (i in 1:5) {
@@ -419,9 +427,9 @@ for (i in 1:5) {
   Xtest <- as.matrix(kfold_list[[paste0("Xtest", i)]])
   Ytest <- as.vector(kfold_list[[paste0("Ytest", i)]])
 
-  lasso_fit <- glmnet(Xtrain, Ytrain, alpha = 1, lambda = 0.00075, family = binomial)
+  lasso_fit <- glmnet(Xtrain, Ytrain, alpha = 1, lambda = 0.00231013, family = binomial)
   
-  pred_probs <- predict(lasso_fit, s = 0.00075, newx = Xtest, type = "response")
+  pred_probs <- predict(lasso_fit, s = 0.00231013, newx = Xtest, type = "response")
   
   predictions <- ifelse(pred_probs > 0.5, 1, 0)
   
@@ -436,9 +444,17 @@ for (i in 1:5) {
   
   true_positive_rates[i] <- ifelse((TP + FN) > 0, TP / (TP + FN))
   true_negative_rates[i] <- ifelse((TN + FP) > 0, TN / (TN + FP))
-  
 }
-return(kable(data.frame(error_rates, cross_entropies_losses, true_positive_rates, true_negative_rates), digits = 2))
+
+ mean_error_rate <- mean(error_rates)
+  mean_cross_entropy_loss <- mean(cross_entropies_losses)
+  mean_tp_rate <- mean(true_positive_rates)
+  mean_tn_rate <- mean(true_negative_rates)
+
+return( kable(data.frame(mean_error_rate,mean_cross_entropy_loss,
+      mean_tn_rate, mean_tp_rate), digits = 3)
+    )
+
 
 }
 
@@ -490,7 +506,15 @@ for (i in 1:5) {
    true_positive_rates[i] <- ifelse((TP + FN) > 0, TP / (TP + FN))
    true_negative_rates[i] <- ifelse((TN + FP) > 0, TN / (TN + FP))
 }
-return(kable(data.frame(error_rates, cross_entropies_losses, true_positive_rates, true_negative_rates), digits = 2))
+mean_error_rate <- mean(error_rates)
+  mean_cross_entropy_loss <- mean(cross_entropies_losses)
+  mean_tp_rate <- mean(true_positive_rates)
+  mean_tn_rate <- mean(true_negative_rates)
+
+return( kable(data.frame(mean_error_rate,mean_cross_entropy_loss,
+      mean_tn_rate, mean_tp_rate), digits = 3)
+    )
+
 }
 
 RF(noImp1)
