@@ -1,0 +1,197 @@
+---
+title: "Predictions"
+author: "Ethan Straub"
+date: "2025-06-16"
+output: pdf_document
+---
+
+Ronnie Load Data
+```{r}
+train <- read.csv("C:/Users/Ronnie/Downloads/tbistaa556_training.csv")
+validate <- read.csv("C:/Users/Ronnie/Downloads/tbistaa556_validate.csv")
+```
+
+
+Ethan Load Data
+```{r}
+train = read.csv("tbistaa556_training.csv")
+validate = read.csv("tbistaa556_validate.csv")
+```
+
+
+```{r}
+train = train[,-1]
+validate = validate[,-1]
+train = train[,-36]
+validate = validate[,-36]
+
+# converting NA in the race column to unknown
+indR = is.na(train$race7)
+train$race7[indR] = 0
+indRv = is.na(validate$race7)
+validate$race7[indRv] = 0
+
+train$summaryGCS = (train$gcs_min + train$gcs_max)/2
+train$summaryADL = (train$adl_min + train$adl_max)/2
+train$summaryMOB = (train$mobility_min + train$mobility_max)/2
+
+# put ceiling on Percentages
+train$PABEFZ = ifelse(train$PercentAboveBachelorsEducationForZip>1,train$PercentAboveBachelorsEducationForZip/100,train$PercentAboveBachelorsEducationForZip)
+train$PAHSEFZ = ifelse(train$PercentAboveHighSchoolEducationForZip>1,train$PercentAboveHighSchoolEducationForZip/100,train$PercentAboveHighSchoolEducationForZip)
+
+# log skewed right predictors
+train$loglos_total = log(train$los_total+1)
+train$logtbiS02 = log(train$tbiS02+1)
+train$logtbiS06 = log(train$tbiS06+1)
+train$logtbiS09 = log(train$tbiS09+1)
+
+
+
+validate$summaryGCS = (validate$gcs_min + validate$gcs_max)/2
+validate$summaryADL = (validate$adl_min + validate$adl_max)/2
+validate$summaryMOB = (validate$mobility_min + validate$mobility_max)/2
+
+# put ceiling on Percentages
+validate$PABEFZ = ifelse(validate$PercentAboveBachelorsEducationForZip>1,validate$PercentAboveBachelorsEducationForZip/100,validate$PercentAboveBachelorsEducationForZip)
+validate$PAHSEFZ = ifelse(validate$PercentAboveHighSchoolEducationForZip>1,validate$PercentAboveHighSchoolEducationForZip/100,validate$PercentAboveHighSchoolEducationForZip)
+
+# log skewed right predictors
+validate$loglos_total = log(validate$los_total+1)
+validate$logtbiS02 = log(validate$tbiS02+1)
+validate$logtbiS06 = log(validate$tbiS06+1)
+validate$logtbiS09 = log(validate$tbiS09+1)
+```
+
+
+
+```{r}
+names1 = c("age", "race7", "ethnic3", "sex2", "sig_other","tobacco", "alcohol", "drugs", "MedianIncomeForZip", "payertype", "ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "icu", "delirium", "agitated", "lethargic","comatose", "disoriented","dc_setting", "prehosp", "posthosp", "gcs_min", "gcs_max", "adl_min", "adl_max", "mobility_min", "mobility_max", "loglos_total", "PABEFZ", "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
+
+names2 = c("age", "race7", "sex2", "sig_other","tobacco", "alcohol", 
+"drugs", "MedianIncomeForZip", "payertype", "ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "delirium", "dc_setting", "prehosp", "posthosp", "summaryADL", 
+"mobility_min", "mobility_max", "loglos_total",                               "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
+
+names3 = c("age", "race7", "sex2", "sig_other","tobacco", "alcohol", 
+"drugs", "MedianIncomeForZip", "payertype","ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "delirium", "disoriented","dc_setting", "prehosp", "posthosp", "summaryADL", "mobility_min", "mobility_max", "loglos_total",                     "PAHSEFZ", "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
+
+tY = train$ptp3_yn
+train = train[,-36]
+
+seed = 556
+```
+
+```{r}
+  # imputing Xtrain
+  imputeObj = mice(train, m = 5, seed = seed, printFlag = FALSE)
+  #print(imputeObj$loggedEvents)
+  imp1 = complete(imputeObj, 1)
+  imp2 = complete(imputeObj, 2)
+  imp3 = complete(imputeObj, 3)
+  imp4 = complete(imputeObj, 4)
+  imp5 = complete(imputeObj, 5)
+  
+  # imputing Xtest using the already imputed Xtrain
+  full1 = rbind(imp1, validate)
+  full2 = rbind(imp2, validate)
+  full3 = rbind(imp3, validate)
+  full4 = rbind(imp4, validate)
+  full5 = rbind(imp5, validate)
+  
+  ImpObj1 = mice(full1, m = 1, maxit = 1, seed = seed, printFlag = FALSE)
+  ImpObj2 = mice(full2, m = 1, maxit = 1, seed = seed, printFlag = FALSE)
+  ImpObj3 = mice(full3, m = 1, maxit = 1, seed = seed, printFlag = FALSE)
+  ImpObj4 = mice(full4, m = 1, maxit = 1, seed = seed, printFlag = FALSE)
+  ImpObj5 = mice(full5, m = 1, maxit = 1, seed = seed, printFlag = FALSE)
+  
+  fullImputed1 = complete(ImpObj1, 1)
+  fullImputed2 = complete(ImpObj2, 1)
+  fullImputed3 = complete(ImpObj3, 1)
+  fullImputed4 = complete(ImpObj4, 1)
+  fullImputed5 = complete(ImpObj5, 1)
+  
+  testStart = nrow(t1X)+1
+  
+  Xtest1 = fullImputed1[testStart:nrow(fullImputed1),]
+  Xtest2 = fullImputed2[testStart:nrow(fullImputed2),]
+  Xtest3 = fullImputed3[testStart:nrow(fullImputed3),]
+  Xtest4 = fullImputed4[testStart:nrow(fullImputed4),]
+  Xtest5 = fullImputed5[testStart:nrow(fullImputed5),]
+```
+
+
+```{r}
+t3X1 = as.matrix(imp1 %>% select(all_of(names3)))
+t3X2 = as.matrix(imp2 %>% select(all_of(names3)))
+t3X3 = as.matrix(imp3 %>% select(all_of(names3)))
+t3X4 = as.matrix(imp4 %>% select(all_of(names3)))
+t3X5 = as.matrix(imp5 %>% select(all_of(names3)))
+
+
+v3X1 = as.matrix(Xtest1 %>% select(all_of(names3)))
+v3X2 = as.matrix(Xtest2 %>% select(all_of(names3)))
+v3X3 = as.matrix(Xtest3 %>% select(all_of(names3)))
+v3X4 = as.matrix(Xtest4 %>% select(all_of(names3)))
+v3X5 = as.matrix(Xtest5 %>% select(all_of(names3)))
+```
+
+
+```{r}
+verbose = FALSE
+nrounds = 259
+params = list(objective = "binary:logistic", eta = 0.028635479810182, max_depth = 4, subsample = 0.809286485658959, colsample_bytree = 0.711043330607936, min_child_weight = 8.33287097513676, gamma = 0.595529325027019, lambda = 4.07533963210881)
+
+trainXG1 = xgb.DMatrix(data = t3X1, label = tY)
+trainXG2 = xgb.DMatrix(data = t3X2, label = tY)
+trainXG3 = xgb.DMatrix(data = t3X3, label = tY)
+trainXG4 = xgb.DMatrix(data = t3X4, label = tY)
+trainXG5 = xgb.DMatrix(data = t3X5, label = tY)
+
+trainFit1 = xgb.train(params = params, data = trainXG1, nrounds = nrounds, verbose = verbose)
+trainFit2 = xgb.train(params = params, data = trainXG2, nrounds = nrounds, verbose = verbose)
+trainFit3 = xgb.train(params = params, data = trainXG3, nrounds = nrounds, verbose = verbose)
+trainFit4 = xgb.train(params = params, data = trainXG4, nrounds = nrounds, verbose = verbose)
+trainFit5 = xgb.train(params = params, data = trainXG5, nrounds = nrounds, verbose = verbose)
+      
+# predict using the test set
+probabilities1 = predict(trainFit1, v3X1)
+probabilities2 = predict(trainFit1, v3X2)
+probabilities3 = predict(trainFit1, v3X3)
+probabilities4 = predict(trainFit1, v3X4)
+probabilities5 = predict(trainFit1, v3X5)
+
+classes1 = ifelse(probabilities1 > 0.5, 1, 0)
+classes2 = ifelse(probabilities2 > 0.5, 1, 0)
+classes3 = ifelse(probabilities3 > 0.5, 1, 0)
+classes4 = ifelse(probabilities4 > 0.5, 1, 0)
+classes5 = ifelse(probabilities5 > 0.5, 1, 0)
+```
+
+```{r}
+df = data.frame(classes1,classes2,classes3,classes4,classes5, pred = rep(0,length(classes1)))
+for(i in 1:nrow(df)){
+  meanpick = mean(df$classes1[i],df$classes2[i],df$classes3[i],df$classes4[i], df$classes5[i])
+  df$pred[i] = ifelse(meanpick>0.5,1,0)
+}
+
+
+```
+
+
+
+```{r}
+trainFit = bart(x.train = t3X1, y.train = tY, k = k,
+      power = power, base = base, ntree = ntree,
+      keeptrees = TRUE)
+
+posteriorTest = predict(trainFit, newdata = v3X)
+probsTest = colMeans(posteriorTest)
+classesTest = ifelse(probsTest > 0.5, 1, 0)
+```
+
+
+```{r}
+
+```
+
+
+
