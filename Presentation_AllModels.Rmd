@@ -27,8 +27,8 @@ library(knitr)
 
 Ronnie Load Data
 ```{r}
-train <- read.csv("C:/Users/Ronnie/Downloads/tbistaa556_training.csv")
-validate <- read.csv("C:/Users/Ronnie/Downloads/tbistaa556_validate.csv")
+train <- read.csv("tbistaa556_training.csv")
+validate <- read.csv("tbistaa556_validate.csv")
 ```
 
 
@@ -226,8 +226,10 @@ data = train
 
 Creating variable importance graphs with LASSO and Random Forest
 ```{r}
+set.seed(556)
 # removing na values from train
 trainClean = na.omit(train)
+trainClean = trainClean[,-c(37,38,39,40,41,42,43,44,45)]
 
 # fitting random forest
 trainClean$ptp3_yn = as.factor(trainClean$ptp3_yn)
@@ -270,19 +272,18 @@ ggplot() +
 
 ggsave("lasso_image.png")
 
-cv_lasso$lambda.min
-# the number of beta values which don't go to zero when we use optimal lambda value
-cv_lasso$nzero[which.min(cv_lasso$cvm)]
+#cv_lasso$lambda.min
 
 
-# Gettinh coefficients at best lambda
+# Getting coefficients at best lambda
 best_lambda <- cv_lasso$lambda.min
-best_model_coefs <- coef(cv_lasso, s = "lambda.min")
+best_model_coefs <- coef(cv_lasso, s = best_lambda)
 
 
 
 ```
 
+$$ Loss= \sum_{i=1}^n (y_i - \hat{y}_i)^2 + \lambda \sum_{j=1}^p|\beta_j|$$
 
 
 ## Space for model selection results
@@ -299,7 +300,7 @@ names2 = c("ptp3_yn","age", "race7", "sex2", "sig_other","tobacco", "alcohol",
 "mobility_min", "mobility_max", "loglos_total",                               "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
 
 names3 = c("ptp3_yn","age", "race7", "sex2", "sig_other","tobacco", "alcohol", 
-"drugs", "MedianIncomeForZip", "payertype","ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "delirium", "disoriented","dc_setting", "prehosp", "posthosp", "summaryADL", "mobility_min", "mobility_max", "loglos_total",                     "PAHSEFZ", "PAHSEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
+"drugs", "MedianIncomeForZip", "payertype","ptp1_yn", "ptp2_yn", "ptp0_yn", "ed_yn", "delirium", "disoriented","dc_setting", "prehosp", "posthosp", "summaryADL", "mobility_min", "mobility_max", "loglos_total",                     "PAHSEFZ", "PABEFZ", "logtbiS02", "logtbiS06", "logtbiS09")
 ```
 
 
@@ -419,17 +420,18 @@ true_positive_rates <- numeric(5)
 true_negative_rates <- numeric(5)
 all_predictions <- c()
 all_truths <- c()
+lasso_coefs <- list()
 
 # looping through each kfold split
 for (i in 1:5) {
   Xtrain <- as.matrix(kfold_list[[paste0("Xtrain", i)]])
   Ytrain <- as.vector(kfold_list[[paste0("Ytrain", i)]])
   Xtest <- as.matrix(kfold_list[[paste0("Xtest", i)]])
-  Ytest <- as.vector(kfold_list[[paste0("Ytest", i)]])
+  Ytest <- as.vector(kfold_list[[paste0("Ytest", i)]]) 
 
-  lasso_fit <- glmnet(Xtrain, Ytrain, alpha = 1, lambda = 0.00231013, family = binomial)
+  lasso_fit <- glmnet(Xtrain, Ytrain, alpha = 1, lambda = 0.002009233, family = binomial)
   
-  pred_probs <- predict(lasso_fit, s = 0.00231013, newx = Xtest, type = "response")
+  pred_probs <- predict(lasso_fit, s = 0.002009233, newx = Xtest, type = "response")
   
   predictions <- ifelse(pred_probs > 0.5, 1, 0)
   
@@ -444,6 +446,7 @@ for (i in 1:5) {
   
   true_positive_rates[i] <- ifelse((TP + FN) > 0, TP / (TP + FN))
   true_negative_rates[i] <- ifelse((TN + FP) > 0, TN / (TN + FP))
+
 }
 
  mean_error_rate <- mean(error_rates)
@@ -452,8 +455,7 @@ for (i in 1:5) {
   mean_tn_rate <- mean(true_negative_rates)
 
 return( kable(data.frame(mean_error_rate,mean_cross_entropy_loss,
-      mean_tn_rate, mean_tp_rate), digits = 3)
-    )
+      mean_tn_rate, mean_tp_rate), digits = 3))
 
 
 }
@@ -476,7 +478,6 @@ cross_entropies_losses <- numeric(5)
 true_positive_rates <- numeric(5)
 true_negative_rates <- numeric(5)
 
-kfold_list <- kfoldData(impute = TRUE, colnames = names1, data = fulldata, k = 5)
 
 for (i in 1:5) {
   Xtrain <- kfold_list[[paste0("Xtrain", i)]]
@@ -516,7 +517,6 @@ return( kable(data.frame(mean_error_rate,mean_cross_entropy_loss,
     )
 
 }
-
 RF(noImp1)
 RF(noImp2)
 RF(noImp3)
